@@ -1,0 +1,30 @@
+[mcp_servers.windows_power_user]
+command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.StdioBridge.exe"
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+default_tools_approval_mode = "prompt"
+
+[mcp_servers.windows_power_user_dev]
+command = "dotnet"
+args = [
+  "run",
+  "--project",
+  "C:\\dev\\WindowsPowerUserMcp\\src\\WindowsPowerUserMcp.StdioBridge\\WindowsPowerUserMcp.StdioBridge.csproj"
+]
+startup_timeout_sec = 30
+tool_timeout_sec = 300
+default_tools_approval_mode = "prompt"
+
+[mcp_servers.windows_power_user_http]
+url = "http://127.0.0.1:49321/mcp"
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+default_tools_approval_mode = "prompt"
+
+# High-trust personal lab option. Use only on an owner-authorized machine.
+# The platform still writes redacted audit logs; this only changes Codex prompting policy.
+[mcp_servers.windows_power_user_lab]
+command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.StdioBridge.exe"
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+default_tools_approval_mode = "on-failure"

@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WindowsPowerUserMcp.BrokerService/WindowsPowerUserMcp.BrokerService.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.Core/WindowsPowerUserMcp.Core.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.DesktopAgent/WindowsPowerUserMcp.DesktopAgent.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.HttpHost/WindowsPowerUserMcp.HttpHost.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.Orchestration/WindowsPowerUserMcp.Orchestration.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.Security/WindowsPowerUserMcp.Security.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.StdioBridge/WindowsPowerUserMcp.StdioBridge.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.Tray/WindowsPowerUserMcp.Tray.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.Windows/WindowsPowerUserMcp.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WindowsPowerUserMcp.Tests/WindowsPowerUserMcp.Tests.csproj" />
+  </Folder>
+</Solution>
