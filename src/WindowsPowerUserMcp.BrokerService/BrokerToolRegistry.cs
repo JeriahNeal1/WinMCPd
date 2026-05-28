@@ -1,6 +1,8 @@
+using System.Text;
 using System.Text.Json;
 using WindowsPowerUserMcp.Core;
 using WindowsPowerUserMcp.Orchestration;
+using WindowsPowerUserMcp.Security;
 using WindowsPowerUserMcp.Windows;
 
 namespace WindowsPowerUserMcp.BrokerService;
@@ -56,9 +58,9 @@ public sealed class BrokerToolRegistry(
         Implement("start_process", "Start an interactive process without capture.", RiskLevel.Medium, a => processes.StartProcess(GetString(a, "file_name"), GetOptionalString(a, "arguments") ?? "", GetOptionalString(a, "working_directory")));
         Implement("stop_process", "Stop a process by PID.", RiskLevel.Destructive, a => processes.StopProcess(GetInt(a, "pid"), GetBool(a, "kill_tree", false)));
         Alias("kill_process_tree", "stop_process", "Kill a process tree by PID.", RiskLevel.Destructive);
-        Scaffold("get_process_modules", "Process module enumeration is scaffolded for a later privilege-aware implementation.", RiskLevel.ReadOnly);
-        Scaffold("get_process_open_windows", "Per-process window enumeration is handled by DesktopAgent UI snapshots in this milestone.", RiskLevel.ReadOnly);
-        Scaffold("get_process_network_connections", "Network connection correlation is scaffolded for a later ETW/netstat-backed implementation.", RiskLevel.ReadOnly);
+        Implement("get_process_modules", "List loaded modules for a process where Windows permits access.", RiskLevel.ReadOnly, a => processes.GetProcessModules(GetInt(a, "pid")));
+        Implement("get_process_open_windows", "List top-level visible windows owned by a process.", RiskLevel.ReadOnly, a => processes.GetProcessOpenWindows(GetInt(a, "pid")));
+        Implement("get_process_network_connections", "List TCP/UDP network connections owned by a process.", RiskLevel.ReadOnly, a => GetProcessNetworkConnectionsAsync(GetInt(a, "pid")));
 
         Implement("run_process", "Run a process with bounded timeout and captured logs.", RiskLevel.Medium, a => commandRunner.RunAsync(new ProcessStartRequest(GetString(a, "file_name"), GetOptionalString(a, "arguments") ?? "", GetOptionalString(a, "working_directory"), GetOptionalInt(a, "timeout_seconds"))));
         Implement("run_powershell", "Run Windows PowerShell with bounded timeout and captured logs.", RiskLevel.Medium, a => commandRunner.RunAsync(new ProcessStartRequest("powershell.exe", $"-NoProfile -Command {Quote(GetString(a, "command"))}", GetOptionalString(a, "working_directory"), GetOptionalInt(a, "timeout_seconds"))));
@@ -175,10 +177,10 @@ public sealed class BrokerToolRegistry(
         Implement("create_backup", "Create a timestamped file backup.", RiskLevel.Low, a => files.CreateBackup(GetString(a, "path")));
         Implement("create_zip_archive", "Create a zip archive.", RiskLevel.Medium, a => files.CreateZipArchive(GetString(a, "source_directory"), GetString(a, "destination_zip"), GetBool(a, "overwrite", false)));
         Implement("extract_zip_archive", "Extract a zip archive.", RiskLevel.Medium, a => files.ExtractZipArchive(GetString(a, "zip_path"), GetString(a, "destination_directory"), GetBool(a, "overwrite", false)));
-        Scaffold("apply_unified_diff_patch", "Unified diff application is scaffolded; use Codex workspace patching for source edits in this milestone.", RiskLevel.Medium);
-        Scaffold("get_file_acl", "ACL inspection is scaffolded for a later FileSystem.AccessControl-backed implementation.", RiskLevel.ReadOnly);
-        Scaffold("set_file_acl", "ACL writes are scaffolded and will require backup/confirmation metadata.", RiskLevel.High);
-        Scaffold("take_ownership_if_elevated", "Ownership changes are scaffolded and will require an elevated broker.", RiskLevel.High);
+        Implement("apply_unified_diff_patch", "Apply or dry-run a unified diff with path validation and backups.", RiskLevel.Medium, a => files.ApplyUnifiedDiffPatch(GetString(a, "patch_text"), GetOptionalString(a, "root"), GetBool(a, "dry_run", true), GetBool(a, "backup", true)));
+        Implement("get_file_acl", "Read file or directory ACLs including owner and SDDL.", RiskLevel.ReadOnly, a => files.GetFileAcl(GetString(a, "path")));
+        Implement("set_file_acl", "Add a file or directory ACL rule after writing an SDDL backup.", RiskLevel.High, a => files.SetFileAcl(GetString(a, "path"), GetString(a, "identity"), GetString(a, "rights"), GetOptionalString(a, "access_type") ?? "Allow", GetBool(a, "inherit", false)));
+        Implement("take_ownership_if_elevated", "Take file or directory ownership only when broker is already elevated.", RiskLevel.Destructive, a => files.TakeOwnershipIfElevated(GetString(a, "path")));
     }
 
     private void RegisterRegistryTools()
@@ -210,7 +212,7 @@ public sealed class BrokerToolRegistry(
         Implement("get_app_crash_events", "Get recent app crash events.", RiskLevel.ReadOnly, _ => commandRunner.RunAsync(new ProcessStartRequest("powershell.exe", "-NoProfile -Command \"Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} -MaxEvents 50 | Select-Object TimeCreated,ProviderName,Message | ConvertTo-Json -Depth 4\"", TimeoutSeconds: 60)));
         Implement("get_windows_update_events", "Get recent Windows Update client events.", RiskLevel.ReadOnly, _ => commandRunner.RunAsync(new ProcessStartRequest("powershell.exe", "-NoProfile -Command \"Get-WinEvent -LogName 'Microsoft-Windows-WindowsUpdateClient/Operational' -MaxEvents 50 | Select-Object TimeCreated,Id,LevelDisplayName,Message | ConvertTo-Json -Depth 4\"", TimeoutSeconds: 60)));
         Alias("export_event_log_slice", "query_event_logs", "Export event log slice via captured command output.", RiskLevel.ReadOnly);
-        Scaffold("watch_event_log", "Durable event-log watch continuations are scaffolded.", RiskLevel.ReadOnly);
+        Implement("watch_event_log", "Start a durable tracked event-log watcher and queue a continuation on watcher exit.", RiskLevel.ReadOnly, a => WatchEventLogAsync(a));
 
         Implement("list_scheduled_tasks", "List scheduled tasks.", RiskLevel.ReadOnly, _ => commandRunner.RunAsync(new ProcessStartRequest("schtasks.exe", "/query /fo LIST /v", TimeoutSeconds: 60)));
         Implement("get_scheduled_task", "Get scheduled task by name.", RiskLevel.ReadOnly, a => commandRunner.RunAsync(new ProcessStartRequest("schtasks.exe", $"/query /tn {Quote(GetString(a, "task_name"))} /fo LIST /v", TimeoutSeconds: 60)));
@@ -291,12 +293,12 @@ public sealed class BrokerToolRegistry(
         Implement("wait_until_file_exists", "Wait for a file/path to exist.", RiskLevel.ReadOnly, a => waits.WaitUntilFileExistsAsync(GetString(a, "path"), GetInt(a, "timeout_seconds", 300)));
         Implement("wait_until_port_open", "Wait for TCP port to open.", RiskLevel.ReadOnly, a => waits.WaitUntilPortOpenAsync(GetString(a, "host"), GetInt(a, "port"), GetInt(a, "timeout_seconds", 300)));
         Implement("watch_file_created", "Watch for file creation with bounded timeout.", RiskLevel.ReadOnly, a => waits.WatchFileCreatedAsync(GetString(a, "path"), GetInt(a, "timeout_seconds", 300)));
-        Alias("watch_file_changed", "watch_file_created", "Watch for file change is scaffolded through file-created bounded watcher for now.", RiskLevel.ReadOnly);
-        Alias("watch_directory", "watch_file_created", "Directory watch uses a specific path in this milestone.", RiskLevel.ReadOnly);
-        Alias("watch_download_complete", "watch_file_created", "Download completion uses file-created watcher in this milestone.", RiskLevel.ReadOnly);
-        Scaffold("watch_log_for_pattern", "Pattern log watching is scaffolded; use process_tail_output and wait continuations for now.", RiskLevel.ReadOnly);
-        Scaffold("wait_until_window_exists", "Window waits are delegated to DesktopAgent and scaffolded in broker-only mode.", RiskLevel.ReadOnly);
-        Scaffold("wait_until_dialog_detected", "Dialog waits are delegated to DesktopAgent and scaffolded in broker-only mode.", RiskLevel.ReadOnly);
+        Implement("watch_file_changed", "Watch for file changes with bounded timeout.", RiskLevel.ReadOnly, a => waits.WatchFileChangedAsync(GetString(a, "path"), GetInt(a, "timeout_seconds", 300)));
+        Implement("watch_directory", "Watch a directory for the first bounded change.", RiskLevel.ReadOnly, a => waits.WatchDirectoryAsync(GetString(a, "path"), GetInt(a, "timeout_seconds", 300)));
+        Implement("watch_download_complete", "Wait for a download target to exist and become stable.", RiskLevel.ReadOnly, a => waits.WatchDownloadCompleteAsync(GetString(a, "path"), GetInt(a, "timeout_seconds", 300)));
+        Implement("watch_log_for_pattern", "Watch appended log output for a pattern.", RiskLevel.ReadOnly, a => waits.WatchLogForPatternAsync(GetString(a, "path"), GetString(a, "pattern"), GetInt(a, "timeout_seconds", 300)));
+        Implement("wait_until_window_exists", "Delegate a bounded window wait to DesktopAgent.", RiskLevel.ReadOnly, a => DelegateToDesktopAgentAsync("ui_wait_for_window", a), ToolImplementationStatus.DelegatedToDesktopAgent);
+        Implement("wait_until_dialog_detected", "Delegate a bounded dialog wait to DesktopAgent.", RiskLevel.ReadOnly, a => DelegateToDesktopAgentAsync("ui_wait_for_dialog", a), ToolImplementationStatus.DelegatedToDesktopAgent);
         Implement("wait_until_user_continues", "Queue a manual user continuation.", RiskLevel.Low, a => waits.QueueManualContinuationAsync(GetString(a, "task_id"), GetString(a, "prompt")));
     }
 
@@ -308,8 +310,8 @@ public sealed class BrokerToolRegistry(
             "ui_move_window", "ui_resize_window", "ui_minimize_window", "ui_maximize_window", "ui_close_window",
             "ui_inspect_window", "ui_find_control", "ui_invoke_control", "ui_set_control_value", "ui_select_item",
             "ui_expand_collapse", "ui_scroll", "ui_click", "ui_double_click", "ui_right_click", "ui_type_text",
-            "ui_send_hotkey", "ui_send_keys", "ui_clipboard_set", "ui_clipboard_get_redacted", "ui_screenshot_desktop",
-            "ui_screenshot_window", "ui_wait_for_window", "ui_wait_for_control", "ui_wait_for_text", "ui_wait_for_dialog",
+            "ui_send_hotkey", "ui_send_keys", "ui_drag_drop", "ui_clipboard_set", "ui_clipboard_get_redacted", "ui_screenshot_desktop",
+            "ui_screenshot_window", "ui_wait_for_window", "ui_wait_for_control", "ui_wait_for_text", "ui_wait_for_dialog", "ui_wait_until_idle",
             "ui_detect_common_dialogs", "ui_execute_plan", "ui_stop_current_plan", "ui_get_plan_status", "ui_read_plan_log"
         })
         {
@@ -334,8 +336,8 @@ public sealed class BrokerToolRegistry(
         });
         Implement("run_agent_cli", "Run a local agent CLI command with capture.", RiskLevel.Medium, a => commandRunner.RunAsync(new ProcessStartRequest(GetString(a, "file_name"), GetString(a, "arguments"), GetOptionalString(a, "working_directory"), GetOptionalInt(a, "timeout_seconds"))));
         Alias("read_agent_output", "process_tail_output", "Read tracked agent process output.", RiskLevel.ReadOnly);
-        Scaffold("import_agent_patch", "Patch import is scaffolded; imported agent output must be reviewed and tested.", RiskLevel.Medium);
-        Scaffold("validate_agent_output", "Agent validation policy is scaffolded; use run_tests/run_lint explicitly.", RiskLevel.Medium);
+        Implement("import_agent_patch", "Validate an agent patch for secrets/unsafe patterns, then dry-run or apply it.", RiskLevel.Medium, a => ImportAgentPatchAsync(a));
+        Implement("validate_agent_output", "Scan agent output or a patch file for secrets and unsafe patterns.", RiskLevel.Medium, a => ValidateAgentOutputAsync(a));
         Alias("summarize_agent_result", "task_generate_final_summary", "Summarize agent result through task ledger.", RiskLevel.Low);
         Alias("create_cross_agent_handoff_bundle", "task_export_handoff_bundle", "Create cross-agent handoff bundle.", RiskLevel.Low);
     }
@@ -361,6 +363,138 @@ public sealed class BrokerToolRegistry(
         return record is null
             ? ResultEnvelope<object>.Fail("process_not_found", "Tracked process was not found.", OperationStatus.Failed, RiskLevel.ReadOnly)
             : commandRunner.ReadLogTail(stdout ? record.StdoutLogPath : record.StderrLogPath, bytes);
+    }
+
+    private Task<object> GetProcessNetworkConnectionsAsync(int pid)
+    {
+        var script =
+            $$"""
+            $ErrorActionPreference = 'SilentlyContinue'
+            $pidToInspect = {{pid}}
+            $tcp = @(Get-NetTCPConnection -OwningProcess $pidToInspect | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess,CreationTime)
+            $udp = @(Get-NetUDPEndpoint -OwningProcess $pidToInspect | Select-Object LocalAddress,LocalPort,OwningProcess,CreationTime)
+            [pscustomobject]@{
+              pid = $pidToInspect
+              tcp = $tcp
+              udp = $udp
+            } | ConvertTo-Json -Depth 5
+            """;
+
+        return commandRunner.RunAsync(new ProcessStartRequest("powershell.exe", EncodedPowerShell(script), TimeoutSeconds: 30))
+            .ContinueWith(t => (object)t.Result, TaskScheduler.Default);
+    }
+
+    private async Task<object> WatchEventLogAsync(JsonElement args)
+    {
+        var logName = GetString(args, "log_name");
+        var taskId = GetString(args, "task_id");
+        var timeoutSeconds = GetInt(args, "timeout_seconds", 300);
+        var query = GetOptionalString(args, "query");
+        var continuationPrompt = GetOptionalString(args, "continuation_prompt")
+            ?? $"Resume task {taskId}. The event-log watcher for '{logName}' has exited; inspect the tracked process logs and continue.";
+
+        var script =
+            $$"""
+            $ErrorActionPreference = 'SilentlyContinue'
+            $logName = '{{PsSingleQuote(logName)}}'
+            $xpath = '{{PsSingleQuote(query ?? string.Empty)}}'
+            $start = Get-Date
+            $deadline = $start.AddSeconds({{timeoutSeconds}})
+            while ((Get-Date) -lt $deadline) {
+              if ([string]::IsNullOrWhiteSpace($xpath)) {
+                $events = @(Get-WinEvent -LogName $logName -MaxEvents 25 | Where-Object { $_.TimeCreated -ge $start })
+              } else {
+                $events = @(Get-WinEvent -LogName $logName -FilterXPath $xpath -MaxEvents 25 | Where-Object { $_.TimeCreated -ge $start })
+              }
+
+              if ($events.Count -gt 0) {
+                $events | Select-Object TimeCreated,LogName,Id,LevelDisplayName,ProviderName,Message | ConvertTo-Json -Depth 5
+                exit 0
+              }
+
+              Start-Sleep -Seconds 2
+            }
+
+            Write-Output "No matching events observed before timeout."
+            exit 2
+            """;
+
+        var started = await commandRunner.StartTrackedAsync(new ProcessStartRequest(
+            "powershell.exe",
+            EncodedPowerShell(script),
+            TimeoutSeconds: timeoutSeconds + 30,
+            TaskId: taskId,
+            ExpectedCompletionSignal: "event_log_match_or_timeout",
+            ContinuationPrompt: continuationPrompt)).ConfigureAwait(false);
+
+        if (started.Success && started.Data is { } tracked)
+        {
+            await ledger.QueueContinuationAsync(
+                taskId,
+                ContinuationConditionType.ProcessExit,
+                JsonSerializer.Serialize(new { tracked_process_id = tracked.Id, log_name = logName }, JsonDefaults.Options),
+                continuationPrompt).ConfigureAwait(false);
+        }
+
+        return started;
+    }
+
+    private async Task<object> ValidateAgentOutputAsync(JsonElement args)
+    {
+        var patchText = await ReadPatchOrTextAsync(args).ConfigureAwait(false);
+        if (patchText is null)
+        {
+            return ResultEnvelope<object>.Fail("missing_patch", "Provide patch_text or path.", OperationStatus.Failed, RiskLevel.Medium);
+        }
+
+        var scan = new PatchSafetyScanner().Scan(patchText);
+        return ResultEnvelope<object>.Ok(new
+        {
+            safe = scan.Safe,
+            findings = scan.Findings,
+            redactions_applied = scan.RedactionsApplied,
+            redacted_preview = scan.RedactedPreview
+        }, scan.Safe ? "Agent output validation passed." : "Agent output validation found unsafe or sensitive content.", RiskLevel.Medium);
+    }
+
+    private async Task<object> ImportAgentPatchAsync(JsonElement args)
+    {
+        var patchText = await ReadPatchOrTextAsync(args).ConfigureAwait(false);
+        if (patchText is null)
+        {
+            return ResultEnvelope<object>.Fail("missing_patch", "Provide patch_text or path.", OperationStatus.Failed, RiskLevel.Medium);
+        }
+
+        var scan = new PatchSafetyScanner().Scan(patchText);
+        if (!scan.Safe)
+        {
+            return ResultEnvelope<object>.Fail(
+                "unsafe_agent_patch",
+                "Imported agent patch contains secrets or unsafe patterns. Review validate_agent_output for redacted details.",
+                OperationStatus.Failed,
+                RiskLevel.SecuritySensitive,
+                redactionsApplied: scan.RedactionsApplied);
+        }
+
+        var patchResult = files.ApplyUnifiedDiffPatch(patchText, GetOptionalString(args, "root"), GetBool(args, "dry_run", true), backup: true);
+        return patchResult.Success
+            ? ResultEnvelope<object>.Ok(new { validation = scan, patch_result = patchResult.Data }, patchResult.Message, RiskLevel.Medium)
+            : ResultEnvelope<object>.Fail(patchResult.ErrorCode ?? "patch_import_failed", patchResult.Message ?? "Patch import failed.", patchResult.Status, RiskLevel.Medium);
+    }
+
+    private static async Task<string?> ReadPatchOrTextAsync(JsonElement args)
+    {
+        if (GetOptionalString(args, "patch_text") is { Length: > 0 } patchText)
+        {
+            return patchText;
+        }
+
+        if (GetOptionalString(args, "path") is { Length: > 0 } path)
+        {
+            return await File.ReadAllTextAsync(Environment.ExpandEnvironmentVariables(path)).ConfigureAwait(false);
+        }
+
+        return null;
     }
 
     private async Task<ResultEnvelope<object>> GenerateTaskSummaryAsync(string id)
@@ -441,6 +575,12 @@ public sealed class BrokerToolRegistry(
     }
 
     private static string Quote(string value) => "\"" + value.Replace("\"", "\\\"") + "\"";
+
+    private static string EncodedPowerShell(string command) =>
+        "-NoProfile -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
+
+    private static string PsSingleQuote(string value) =>
+        value.Replace("'", "''", StringComparison.Ordinal);
 
     private sealed record ToolEntry(ToolDescriptor Descriptor, Func<JsonElement, CancellationToken, Task<object>> Handler);
 }

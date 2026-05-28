@@ -10,10 +10,13 @@ public sealed class BrokerToolProxy(BrokerPipeClient client)
     public Task<JsonElement> InvokeAsync(string toolName, object? args = null) =>
         client.InvokeForMcpAsync(toolName, args);
 
-    public async Task<JsonElement> InvokeJsonAsync(string toolName, string argumentsJson)
+    public Task<JsonElement> InvokeElementAsync(string toolName, JsonElement arguments, CancellationToken cancellationToken = default) =>
+        client.InvokeForMcpAsync(toolName, arguments, cancellationToken);
+
+    public async Task<JsonElement> InvokeJsonAsync(string toolName, string argumentsJson, CancellationToken cancellationToken = default)
     {
         using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson);
-        return await client.InvokeForMcpAsync(toolName, doc.RootElement.Clone()).ConfigureAwait(false);
+        return await client.InvokeForMcpAsync(toolName, doc.RootElement.Clone(), cancellationToken).ConfigureAwait(false);
     }
 }
 

@@ -7,6 +7,9 @@ public sealed class WindowsPowerUserMcpOptions
     public bool LocalHttpEnabled { get; set; }
     public int LocalHttpPort { get; set; } = 49321;
     public string IpcPipeName { get; set; } = "WindowsPowerUserMcp.Broker";
+    public bool IpcCurrentUserOnly { get; set; } = true;
+    public string[] IpcAllowedUserSids { get; set; } = [];
+    public bool IpcAllowBuiltinAdministrators { get; set; }
     public string? DataRoot { get; set; }
     public string? ServiceDataRoot { get; set; }
     public string? LogRoot { get; set; }

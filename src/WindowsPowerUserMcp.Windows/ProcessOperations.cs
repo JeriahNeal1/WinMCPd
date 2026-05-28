@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
 using WindowsPowerUserMcp.Core;
 
 namespace WindowsPowerUserMcp.Windows;
@@ -63,6 +65,47 @@ public sealed class ProcessOperations
         }
     }
 
+    public ResultEnvelope<object> GetProcessModules(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            var modules = process.Modules.Cast<ProcessModule>().Select(m => new
+            {
+                name = m.ModuleName,
+                file_name = m.FileName,
+                base_address = m.BaseAddress.ToInt64(),
+                module_memory_size = m.ModuleMemorySize
+            }).ToArray();
+            return ResultEnvelope<object>.Ok(new { pid, modules }, "Process modules.", RiskLevel.ReadOnly);
+        }
+        catch (Exception ex)
+        {
+            return ResultEnvelope<object>.Fail("process_modules_failed", ex.Message, OperationStatus.Failed, RiskLevel.ReadOnly);
+        }
+    }
+
+    public ResultEnvelope<object> GetProcessOpenWindows(int pid)
+    {
+        var windows = new List<object>();
+        EnumWindows((hwnd, _) =>
+        {
+            GetWindowThreadProcessId(hwnd, out var windowPid);
+            if (windowPid == pid && IsWindowVisible(hwnd))
+            {
+                var title = GetWindowTitle(hwnd);
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    windows.Add(new { hwnd = hwnd.ToInt64(), title });
+                }
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        return ResultEnvelope<object>.Ok(new { pid, windows }, "Process windows.", RiskLevel.ReadOnly);
+    }
+
     private static object SafeProcessInfo(Process process, bool includeDetail = false)
     {
         string? mainModule = null;
@@ -82,4 +125,34 @@ public sealed class ProcessOperations
             responding = includeDetail ? process.Responding : (bool?)null
         };
     }
+
+    private static string GetWindowTitle(IntPtr hwnd)
+    {
+        var length = GetWindowTextLength(hwnd);
+        if (length == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(length + 1);
+        GetWindowText(hwnd, builder, builder.Capacity);
+        return builder.ToString();
+    }
+
+    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
 }

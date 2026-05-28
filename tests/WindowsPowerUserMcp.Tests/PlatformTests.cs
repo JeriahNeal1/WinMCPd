@@ -1,7 +1,12 @@
 using System.Text.Json;
+using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using WindowsPowerUserMcp.BrokerService;
 using WindowsPowerUserMcp.Core;
 using WindowsPowerUserMcp.Orchestration;
 using WindowsPowerUserMcp.Security;
+using WindowsPowerUserMcp.Windows;
 
 namespace WindowsPowerUserMcp.Tests;
 
@@ -57,10 +62,105 @@ public sealed class PlatformTests : IDisposable
     [Fact]
     public void UiPlan_Model_Serializes()
     {
-        var plan = new UiPlanRequest("task1", [new UiPlanAction(UiActionType.SendHotkey, null, null, 0, 0, 1000, null, "CTRL+S", null, 0, "stop", false, false, true, true, true, true, true)]);
+        var plan = new UiPlanRequest("task1",
+        [
+            new UiPlanAction(UiActionType.SendHotkey, null, null, 0, 0, 1000, null, "CTRL+S", null, 0, "stop", false, false, true, true, true, true, true),
+            new UiPlanAction(UiActionType.WaitUntilIdle, null, null, 0, 0, 1000, null, null, null, 0, "stop", false, false, true, true, true, true, true),
+            new UiPlanAction(UiActionType.DragDrop, null, null, 0, 0, 1000, null, null, null, 0, "stop", false, false, true, true, true, true, true, X: 10, Y: 10, ToX: 50, ToY: 50)
+        ], PlanTimeoutMs: 5000);
         var json = JsonSerializer.Serialize(plan, JsonDefaults.Options);
         Assert.Contains("send_hotkey", json);
+        Assert.Contains("wait_until_idle", json);
+        Assert.Contains("drag_drop", json);
         Assert.Contains("ctrl", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ToolCatalog_Covers_Registered_Broker_Tools()
+    {
+        var registry = await CreateRegistryAsync();
+        registry.RegisterTools();
+
+        var catalog = ToolCatalog.All.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var registered = registry.Descriptors.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Empty(registered.Except(catalog, StringComparer.OrdinalIgnoreCase));
+        Assert.Empty(catalog.Except(registered, StringComparer.OrdinalIgnoreCase));
+        Assert.Contains(ToolCatalog.All, t => t.Name == "ui_drag_drop" && t.Component == "DesktopAgent");
+        Assert.Contains(ToolCatalog.All, t => t.Name == "apply_unified_diff_patch" && t.ImplementationStatus == ToolImplementationStatus.Implemented);
+    }
+
+    [Fact]
+    public void BrokerPipeSecurity_Uses_Configured_User_Sid_Without_World_Access()
+    {
+        var currentSid = WindowsIdentity.GetCurrent().User?.Value;
+        if (string.IsNullOrWhiteSpace(currentSid))
+        {
+            return;
+        }
+
+        var options = new WindowsPowerUserMcpOptions
+        {
+            IpcCurrentUserOnly = false,
+            IpcAllowedUserSids = [currentSid],
+            IpcAllowBuiltinAdministrators = false
+        };
+
+        var security = BrokerPipeSecurity.BuildPipeSecurity(options);
+        var rules = security.GetAccessRules(includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier))
+            .Cast<PipeAccessRule>()
+            .ToArray();
+
+        Assert.Contains(rules, r => r.AccessControlType == AccessControlType.Allow && r.IdentityReference.Value == currentSid);
+        Assert.DoesNotContain(rules, r => r.IdentityReference.Value == new SecurityIdentifier(WellKnownSidType.WorldSid, null).Value);
+        Assert.DoesNotContain(rules, r => r.IdentityReference.Value == new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null).Value);
+    }
+
+    [Fact]
+    public void PatchSafetyScanner_Blocks_Secrets_And_Unsafe_Content()
+    {
+        var scanner = new PatchSafetyScanner(new SecretRedactor(_options));
+        var patch = """
+            --- a/tool.ps1
+            +++ b/tool.ps1
+            @@ -1,1 +1,2 @@
+             Write-Host ok
+            +$password = 'hunter2'
+            +mimikatz sekurlsa::logonpasswords
+            """;
+
+        var result = scanner.Scan(patch);
+
+        Assert.False(result.Safe);
+        Assert.Contains(result.Findings, f => f.Code == "secret_material_detected");
+        Assert.Contains(result.Findings, f => f.Code == "credential_tool_reference");
+        Assert.DoesNotContain("hunter2", result.RedactedPreview);
+    }
+
+    [Fact]
+    public void UnifiedDiffPatch_DryRun_Backup_And_Apply_Work()
+    {
+        var fileSystem = new FileSystemOperations(_layout);
+        var target = Path.Combine(_root, "sample.txt");
+        File.WriteAllText(target, "one\ntwo\nthree\n");
+        var patch = """
+            --- a/sample.txt
+            +++ b/sample.txt
+            @@ -1,3 +1,3 @@
+             one
+            -two
+            +TWO
+             three
+            """;
+
+        var dryRun = fileSystem.ApplyUnifiedDiffPatch(patch, _root, dryRun: true, backup: true);
+        Assert.True(dryRun.Success, dryRun.Message);
+        Assert.Contains("two", File.ReadAllText(target));
+
+        var applied = fileSystem.ApplyUnifiedDiffPatch(patch, _root, dryRun: false, backup: true);
+        Assert.True(applied.Success, applied.Message);
+        Assert.Contains("TWO", File.ReadAllText(target));
+        Assert.NotEmpty(Directory.EnumerateFiles(_layout.Patches, "*.bak"));
     }
 
     [Fact]
@@ -120,6 +220,22 @@ public sealed class PlatformTests : IDisposable
     }
 
     [Fact]
+    public async Task LogWatcher_Triggers_On_Appended_Pattern()
+    {
+        var ledger = new TaskLedger(_layout);
+        await ledger.InitializeAsync();
+        var waits = new WaitServices(ledger);
+        var path = Path.Combine(_root, "app.log");
+        await File.WriteAllTextAsync(path, "starting\n");
+        var watch = waits.WatchLogForPatternAsync(path, "ready", 5);
+        await Task.Delay(250);
+        await File.AppendAllTextAsync(path, "system ready\n");
+
+        var result = await watch;
+        Assert.True(result.Success, result.Message);
+    }
+
+    [Fact]
     public void Scripts_And_Codex_Config_Are_Present()
     {
         var repo = FindRepoRoot();
@@ -128,6 +244,8 @@ public sealed class PlatformTests : IDisposable
 
         Assert.Contains("sc.exe create", installService);
         Assert.Contains("Run this script from an elevated PowerShell session", installService);
+        Assert.Contains("IpcAllowedUserSids", installService);
+        Assert.Contains("Register-ScheduledTask", File.ReadAllText(Path.Combine(repo, "scripts", "install-tray-autostart.ps1")));
         Assert.Contains("mcp_servers.windows_power_user", codex);
         Assert.Contains("WindowsPowerUserMcp.StdioBridge", codex);
     }
@@ -153,6 +271,27 @@ public sealed class PlatformTests : IDisposable
         var redactor = new SecretRedactor(_options);
         var audit = new JsonlAuditLogger(_layout, redactor);
         return new CommandRunner(_layout, _options, redactor, new SafetyGuards(), audit, ledger);
+    }
+
+    private async Task<BrokerToolRegistry> CreateRegistryAsync()
+    {
+        var ledger = new TaskLedger(_layout);
+        await ledger.InitializeAsync();
+        var redactor = new SecretRedactor(_options);
+        var audit = new JsonlAuditLogger(_layout, redactor);
+        var runner = new CommandRunner(_layout, _options, redactor, new SafetyGuards(), audit, ledger);
+        return new BrokerToolRegistry(
+            _options,
+            _layout,
+            new SystemOperations(redactor),
+            new FileSystemOperations(_layout),
+            new ProcessOperations(),
+            new RegistryOperations(_layout, runner),
+            new ServiceOperations(runner),
+            new ToolingOperations(runner),
+            runner,
+            ledger,
+            new WaitServices(ledger));
     }
 
     private static string FindRepoRoot()

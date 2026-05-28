@@ -29,4 +29,28 @@ Audit logs are append-only JSONL under `%LOCALAPPDATA%\WindowsPowerUserMcp\logs`
 
 ## IPC
 
-The current milestone uses named pipes with `PipeOptions.CurrentUserOnly` for local per-user security. Service-to-user cross-session ACL hardening is documented as next work before production service deployment under LocalSystem.
+Default per-user broker runs use named pipes with `PipeOptions.CurrentUserOnly`.
+
+For service mode under LocalSystem, `IpcCurrentUserOnly` must be set to `false` and `IpcAllowedUserSids` must contain the owner user SID(s) that are allowed to connect. The broker then creates the pipe with an explicit protected DACL that grants read/write/create-instance rights only to:
+
+- the broker process identity, such as LocalSystem;
+- configured `IpcAllowedUserSids`;
+- Builtin Administrators only when `IpcAllowBuiltinAdministrators` is explicitly `true`.
+
+The DACL does not grant `Everyone` or `Builtin Users`. Tests inspect the generated DACL to verify that world/user group access is absent.
+
+`scripts\install-service.ps1` captures the installing user's SID by default and writes these settings to the installed `appsettings.json`:
+
+```json
+{
+  "IpcCurrentUserOnly": false,
+  "IpcAllowedUserSids": ["S-1-5-21-..."],
+  "IpcAllowBuiltinAdministrators": false
+}
+```
+
+Use a stable `IpcPipeName` shared by BrokerService, StdioBridge, and DesktopAgent. For high-trust labs with multiple owners, pass additional SIDs intentionally and keep the installed config auditable.
+
+## Patch And Agent Import Safety
+
+Imported agent patches are treated as untrusted. `validate_agent_output` and `import_agent_patch` scan for secret-looking material and unsafe patterns such as credential dumping, UAC bypass, browser cookie extraction, or security-tool evasion before applying a patch. Unsafe patches fail closed and return redacted findings.

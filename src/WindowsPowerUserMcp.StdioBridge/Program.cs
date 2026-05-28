@@ -11,10 +11,11 @@ options.IpcPipeName = builder.Configuration["IpcPipeName"] ?? options.IpcPipeNam
 
 builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 builder.Services.AddSingleton(options);
-builder.Services.AddSingleton(new BrokerToolProxy(new BrokerPipeClient(options.IpcPipeName, TimeSpan.FromSeconds(3))));
+var proxy = new BrokerToolProxy(new BrokerPipeClient(options.IpcPipeName, TimeSpan.FromSeconds(3)));
+builder.Services.AddSingleton(proxy);
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
-    .WithToolsFromAssembly();
+    .WithTools(DirectBrokerToolFactory.CreateTools(proxy));
 
 await builder.Build().RunAsync();

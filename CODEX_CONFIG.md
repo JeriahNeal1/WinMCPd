@@ -2,6 +2,8 @@
 
 Use stdio for Codex as the primary path.
 
+StdioBridge exposes direct generated MCP methods for every broker tool descriptor. `broker_call` exists only as a deprecated compatibility fallback; prefer direct tools after refreshing the MCP server in Codex.
+
 ```toml
 [mcp_servers.windows_power_user]
 command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.StdioBridge.exe"

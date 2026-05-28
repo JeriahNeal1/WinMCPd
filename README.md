@@ -6,9 +6,9 @@ This repository targets the newest .NET SDK installed on this machine. At creati
 
 ## Built Milestone
 
-- `WindowsPowerUserMcp.StdioBridge`: official MCP C# SDK stdio server for Codex.
+- `WindowsPowerUserMcp.StdioBridge`: official MCP C# SDK stdio server for Codex with generated direct methods for every broker descriptor.
 - `WindowsPowerUserMcp.BrokerService`: console/service-capable broker with named-pipe IPC, durable SQLite task ledger, JSONL audit logging, typed tool registry, command runner, tracked processes, Windows operations, and DesktopAgent delegation.
-- `WindowsPowerUserMcp.DesktopAgent`: WPF tray/dashboard process for the interactive user session, with UI Automation snapshots, screenshots, clipboard, clicks, hotkeys, and simple UI plans.
+- `WindowsPowerUserMcp.DesktopAgent`: WPF tray/dashboard process for the interactive user session, with UI Automation snapshots, screenshots, clipboard, window/control actions, waits, dialog detection, drag/drop, and multi-step UI plans.
 - `WindowsPowerUserMcp.HttpHost`: optional localhost Streamable HTTP MCP host, disabled unless explicitly enabled.
 - `WindowsPowerUserMcp.Core`, `Security`, `Orchestration`, `Windows`, `Tray`: shared contracts and subsystem libraries.
 - xUnit tests for completed behavior.

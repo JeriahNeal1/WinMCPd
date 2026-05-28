@@ -3,6 +3,11 @@ namespace WindowsPowerUserMcp.Core;
 public enum UiActionType
 {
     FocusWindow,
+    MoveWindow,
+    ResizeWindow,
+    MinimizeWindow,
+    MaximizeWindow,
+    CloseWindow,
     InvokeControl,
     SetControlValue,
     SelectItem,
@@ -19,7 +24,10 @@ public enum UiActionType
     WaitForControl,
     WaitForText,
     WaitForDialog,
-    Screenshot
+    WaitUntilIdle,
+    Screenshot,
+    ScreenshotWindow,
+    DragDrop
 }
 
 public sealed record MonitorInfo(
@@ -105,11 +113,18 @@ public sealed record UiPlanAction(
     bool StopIfUnexpectedSensitiveFieldAppears,
     bool StopIfUacPromptAppears,
     bool StopIfCredentialOrMfaPromptAppears,
-    bool StopIfUserInterventionRequired);
+    bool StopIfUserInterventionRequired,
+    int? X = null,
+    int? Y = null,
+    int? ToX = null,
+    int? ToY = null,
+    int? Width = null,
+    int? Height = null);
 
 public sealed record UiPlanRequest(
     string? TaskId,
-    IReadOnlyList<UiPlanAction> Actions);
+    IReadOnlyList<UiPlanAction> Actions,
+    int PlanTimeoutMs = 0);
 
 public sealed record UiPlanStepResult(
     int Index,

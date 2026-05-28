@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Orchestration\WindowsPowerUserMcp.Orchestration.csproj" />
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Windows\WindowsPowerUserMcp.Windows.csproj" />
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Tray\WindowsPowerUserMcp.Tray.csproj" />
+    <ProjectReference Include="..\..\src\WindowsPowerUserMcp.BrokerService\WindowsPowerUserMcp.BrokerService.csproj" />
   </ItemGroup>
 
 </Project>

@@ -18,24 +18,19 @@ public sealed class BrokerWorker(
     {
         await ledger.InitializeAsync(stoppingToken).ConfigureAwait(false);
         registry.RegisterTools();
-        var server = new NamedPipeBrokerServer(options.IpcPipeName, registry, logger);
+        var server = new NamedPipeBrokerServer(options, registry, logger);
         logger.LogInformation("WindowsPowerUserMcp broker listening on pipe {PipeName}", options.IpcPipeName);
         await server.RunAsync(stoppingToken).ConfigureAwait(false);
     }
 }
 
-public sealed class NamedPipeBrokerServer(string pipeName, BrokerToolRegistry registry, ILogger logger)
+public sealed class NamedPipeBrokerServer(WindowsPowerUserMcpOptions options, BrokerToolRegistry registry, ILogger logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var pipe = new NamedPipeServerStream(
-                pipeName,
-                PipeDirection.InOut,
-                NamedPipeServerStream.MaxAllowedServerInstances,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            var pipe = BrokerPipeSecurity.CreateServerStream(options);
 
             try
             {
