@@ -2,7 +2,7 @@
 
 ## StdioBridge Exposure
 
-StdioBridge now generates one direct MCP method for every broker descriptor in `ToolCatalog`. Codex can call tools by name directly instead of routing through string-based dispatch. Each generated tool carries JSON input schema, description, read-only/destructive/open-world metadata, and broker-side argument validation.
+`WindowsPowerUserMcp.App.exe --stdio` and the standalone StdioBridge generate one direct MCP method for every broker descriptor in `ToolCatalog`. Codex can call tools by name directly instead of routing through string-based dispatch. Each generated tool carries JSON input schema, description, read-only/destructive/open-world metadata, and broker-side argument validation.
 
 `broker_call` remains as a deprecated compatibility escape hatch for this milestone. New Codex configs should prefer direct tools; remove `broker_call` once all clients have refreshed their tool cache.
 
@@ -40,3 +40,17 @@ Agent delegation:
 `install_agent_tool`, `process_attach_to_task`, and `generate_codex_handoff_summary` remain scaffolded. `broker_call` is deprecated but still present for compatibility.
 
 Broker-level `wait_until_window_exists` and `wait_until_dialog_detected` are delegated to DesktopAgent. File, directory, download, log-pattern, and event-log watchers are implemented with bounded waits/tracked processes.
+
+## App Management Surface
+
+The app-management functions are not MCP tools; they are local desktop/product operations exposed through `WindowsPowerUserMcp.App` and scripts:
+
+- start/stop/restart user-mode broker;
+- start elevated through normal UAC `runas`;
+- install/start/stop/restart/uninstall `WindowsPowerUserMcp.Broker`;
+- install/uninstall tray scheduled task `WindowsPowerUserMcp Dashboard`;
+- test broker and DesktopAgent pipes;
+- test `App.exe --stdio`;
+- check/stage/apply updates;
+- export redacted diagnostic bundles;
+- detect stale service paths, stale tray task paths, duplicate install roots, and missing install state.

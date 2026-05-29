@@ -1,11 +1,14 @@
 param(
-    [switch]$DesktopAgent
+    [ValidateSet("dashboard", "broker", "stdio", "desktop-agent", "http")]
+    [string]$Mode = "dashboard"
 )
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
-if ($DesktopAgent) {
-    dotnet run --project (Join-Path $repo "src\WindowsPowerUserMcp.DesktopAgent\WindowsPowerUserMcp.DesktopAgent.csproj")
+$project = Join-Path $repo "src\WindowsPowerUserMcp.App\WindowsPowerUserMcp.App.csproj"
+
+if ($Mode -eq "dashboard") {
+    dotnet run --project $project
 } else {
-    dotnet run --project (Join-Path $repo "src\WindowsPowerUserMcp.BrokerService\WindowsPowerUserMcp.BrokerService.csproj")
+    dotnet run --project $project -- "--$Mode"
 }

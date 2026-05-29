@@ -7,6 +7,7 @@ WindowsPowerUserMcp assumes the owner intentionally installed it on a personally
 - Full-drive file operations when the broker has rights.
 - Shell commands, package installs, services, registry, scheduled tasks, WSL, Docker, and ADB operations.
 - User-visible tray autostart and Windows Service install.
+- User-confirmed app updates that preserve data by default.
 - UI automation in the signed-in user session through DesktopAgent.
 - OAuth/device-code/user-mediated logins where the user completes sensitive steps.
 
@@ -16,6 +17,7 @@ WindowsPowerUserMcp assumes the owner intentionally installed it on a personally
 - Credential dumping, token theft, browser password extraction, cookie extraction.
 - MFA bypass.
 - Stealth persistence, hiding files/processes/services, or evading security tools.
+- Hidden/covert autostart or silent data deletion.
 - Reading, logging, or summarizing password fields.
 - Remote control of machines not explicitly configured by the owner.
 
@@ -39,7 +41,7 @@ For service mode under LocalSystem, `IpcCurrentUserOnly` must be set to `false` 
 
 The DACL does not grant `Everyone` or `Builtin Users`. Tests inspect the generated DACL to verify that world/user group access is absent.
 
-`scripts\install-service.ps1` captures the installing user's SID by default and writes these settings to the installed `appsettings.json`:
+`scripts\install-service.ps1` captures the installing user's SID by default and writes these settings to the installed `appsettings.json`. The WPF dashboard also exposes service-mode allowed SID settings.
 
 ```json
 {
@@ -50,6 +52,12 @@ The DACL does not grant `Everyone` or `Builtin Users`. Tests inspect the generat
 ```
 
 Use a stable `IpcPipeName` shared by BrokerService, StdioBridge, and DesktopAgent. For high-trust labs with multiple owners, pass additional SIDs intentionally and keep the installed config auditable.
+
+## Desktop App And Updates
+
+`WindowsPowerUserMcp.App.exe` is visible desktop software. Tray autostart is a scheduled task named `WindowsPowerUserMcp Dashboard`; service mode is a Windows Service named `WindowsPowerUserMcp.Broker`. Both are removable through dashboard controls and scripts.
+
+Updates require user confirmation. The update flow preserves task ledgers, logs, screenshots, and data roots unless the user explicitly chooses deletion during uninstall.
 
 ## Patch And Agent Import Safety
 

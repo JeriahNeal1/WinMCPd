@@ -1,12 +1,11 @@
 # Codex Config
 
-Use stdio for Codex as the primary path.
-
-StdioBridge exposes direct generated MCP methods for every broker tool descriptor. `broker_call` exists only as a deprecated compatibility fallback; prefer direct tools after refreshing the MCP server in Codex.
+Use stdio as the primary Codex path. The installed all-in-one app is preferred:
 
 ```toml
 [mcp_servers.windows_power_user]
-command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.StdioBridge.exe"
+command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.App.exe"
+args = ["--stdio"]
 startup_timeout_sec = 20
 tool_timeout_sec = 300
 default_tools_approval_mode = "prompt"
@@ -20,12 +19,26 @@ command = "dotnet"
 args = [
   "run",
   "--project",
-  "C:\\dev\\WindowsPowerUserMcp\\src\\WindowsPowerUserMcp.StdioBridge\\WindowsPowerUserMcp.StdioBridge.csproj"
+  "C:\\Users\\Natal\\OneDrive\\Documents\\WinMCPd\\src\\WindowsPowerUserMcp.App\\WindowsPowerUserMcp.App.csproj",
+  "--",
+  "--stdio"
 ]
 startup_timeout_sec = 30
 tool_timeout_sec = 300
 default_tools_approval_mode = "prompt"
 ```
+
+Fallback standalone bridge:
+
+```toml
+[mcp_servers.windows_power_user]
+command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.StdioBridge.exe"
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+default_tools_approval_mode = "prompt"
+```
+
+Stdio mode exposes direct generated MCP methods for every broker tool descriptor. `broker_call` remains as a deprecated compatibility fallback; prefer direct tool calls after refreshing Codex's MCP tool cache.
 
 Optional HTTP:
 
@@ -37,4 +50,15 @@ tool_timeout_sec = 300
 default_tools_approval_mode = "prompt"
 ```
 
-HTTP is disabled by default. Start `HttpHost` with `--enable-http` and set `WINDOWS_POWER_USER_MCP_HTTP_TOKEN` when auth is required.
+HTTP is disabled unless explicitly started with `WindowsPowerUserMcp.App.exe --http` or the standalone HttpHost. When HTTP auth is required, set `WINDOWS_POWER_USER_MCP_HTTP_TOKEN`.
+
+High-trust personal lab mode can use a more permissive Codex approval setting, but the platform still emits redacted audit logs:
+
+```toml
+[mcp_servers.windows_power_user_lab]
+command = "C:\\Tools\\WindowsPowerUserMcp\\WindowsPowerUserMcp.App.exe"
+args = ["--stdio"]
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+default_tools_approval_mode = "on-failure"
+```

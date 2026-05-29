@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Core\WindowsPowerUserMcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\WindowsPowerUserMcp.AppManagement\WindowsPowerUserMcp.AppManagement.csproj" />
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Security\WindowsPowerUserMcp.Security.csproj" />
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Orchestration\WindowsPowerUserMcp.Orchestration.csproj" />
     <ProjectReference Include="..\..\src\WindowsPowerUserMcp.Windows\WindowsPowerUserMcp.Windows.csproj" />

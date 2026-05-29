@@ -1,36 +1,84 @@
 # WindowsPowerUserMcp
 
-WindowsPowerUserMcp is an owner-authorized Windows 11 MCP platform for Codex. It exposes typed local Windows capabilities through a fast MCP stdio bridge while keeping durable work in a background broker and interactive desktop control in a per-user DesktopAgent.
+WindowsPowerUserMcp is an owner-authorized Windows 11 MCP platform for Codex. It exposes typed local Windows capabilities through a fast MCP stdio bridge, keeps durable task/process state in a broker, and performs interactive desktop control through a user-session DesktopAgent.
 
-This repository targets the newest .NET SDK installed on this machine. At creation time that is .NET SDK `10.0.300`, so projects target `net10.0` and `net10.0-windows`. To move to `net11.0` preview later, install the SDK, update `global.json`, and change target frameworks in the project files.
+Current target is .NET SDK `10.0.300`, so projects target `net10.0` and `net10.0-windows`. Do not retarget this milestone to .NET 11; when a .NET 11 preview SDK is installed later, update `global.json`, project target frameworks, and rerun the full test/publish pass.
 
-## Built Milestone
+## Main App
 
-- `WindowsPowerUserMcp.StdioBridge`: official MCP C# SDK stdio server for Codex with generated direct methods for every broker descriptor.
-- `WindowsPowerUserMcp.BrokerService`: console/service-capable broker with named-pipe IPC, durable SQLite task ledger, JSONL audit logging, typed tool registry, command runner, tracked processes, Windows operations, and DesktopAgent delegation.
-- `WindowsPowerUserMcp.DesktopAgent`: WPF tray/dashboard process for the interactive user session, with UI Automation snapshots, screenshots, clipboard, window/control actions, waits, dialog detection, drag/drop, and multi-step UI plans.
-- `WindowsPowerUserMcp.HttpHost`: optional localhost Streamable HTTP MCP host, disabled unless explicitly enabled.
-- `WindowsPowerUserMcp.Core`, `Security`, `Orchestration`, `Windows`, `Tray`: shared contracts and subsystem libraries.
-- xUnit tests for completed behavior.
+The primary user-facing executable is now:
+
+```powershell
+src\WindowsPowerUserMcp.App\WindowsPowerUserMcp.App.csproj
+```
+
+`WindowsPowerUserMcp.App.exe` supports:
+
+- default or `--dashboard`: polished dashboard plus tray icon.
+- `--broker` and `--broker --service`: broker host and Windows Service host mode.
+- `--stdio`: fast Codex MCP stdio mode.
+- `--desktop-agent`: launch the companion DesktopAgent.
+- `--http`: localhost HTTP MCP host.
+- `--install`, `--uninstall`, `--update`, `--apply-update`: command-line release operations.
+
+Qt 6 was audited for this milestone. It was not selected because Qt tooling was not installed on this machine and a reliable .NET 10 C# binding path would add native deployment fragility. The app shell uses WPF for stable Windows 11 desktop UX, tray behavior, self-contained publish support, and reuse of the existing DesktopAgent foundation.
 
 ## Quick Start
 
 ```powershell
 dotnet build WindowsPowerUserMcp.slnx
-dotnet run --project src\WindowsPowerUserMcp.BrokerService\WindowsPowerUserMcp.BrokerService.csproj
-dotnet run --project src\WindowsPowerUserMcp.StdioBridge\WindowsPowerUserMcp.StdioBridge.csproj
+dotnet run --project src\WindowsPowerUserMcp.App\WindowsPowerUserMcp.App.csproj
 ```
 
-For UI automation, start the DesktopAgent in the signed-in user session:
+Start broker mode from source:
 
 ```powershell
-dotnet run --project src\WindowsPowerUserMcp.DesktopAgent\WindowsPowerUserMcp.DesktopAgent.csproj
+dotnet run --project src\WindowsPowerUserMcp.App\WindowsPowerUserMcp.App.csproj -- --broker
 ```
 
-Storage defaults to `%LOCALAPPDATA%\WindowsPowerUserMcp`.
+Use App stdio mode from Codex:
+
+```toml
+[mcp_servers.windows_power_user]
+command = "dotnet"
+args = [
+  "run",
+  "--project",
+  "C:\\Users\\Natal\\OneDrive\\Documents\\WinMCPd\\src\\WindowsPowerUserMcp.App\\WindowsPowerUserMcp.App.csproj",
+  "--",
+  "--stdio"
+]
+startup_timeout_sec = 30
+tool_timeout_sec = 300
+default_tools_approval_mode = "prompt"
+```
+
+## Publish
+
+```powershell
+.\scripts\publish-app.ps1
+```
+
+Default output:
+
+```text
+artifacts\publish\WindowsPowerUserMcp
+```
+
+Install to `C:\Tools\WindowsPowerUserMcp`:
+
+```powershell
+.\scripts\install-app.ps1 -InstallTrayAutostart
+```
+
+Install the service from an elevated PowerShell session:
+
+```powershell
+.\scripts\install-app.ps1 -InstallService -InstallTrayAutostart
+```
 
 ## Safety Boundary
 
-This is not a hacking tool. It does not implement UAC bypass, privilege escalation exploits, credential dumping, browser password or cookie extraction, stealth persistence, security evasion, lateral movement, MFA bypass, or covert operation. Admin capabilities require the user to intentionally run or install the broker elevated.
+This is not a hacking tool. It does not implement UAC bypass, privilege escalation exploits, credential dumping, browser password or cookie extraction, MFA bypass, stealth persistence, hiding processes/files/services, security-tool evasion, lateral movement, or covert operation. Admin capabilities require intentional elevation or service installation.
 
-See `SECURITY_MODEL.md`, `TOOL_REFERENCE.md`, and `INSTALL.md`.
+See `APP_SHELL.md`, `INSTALL.md`, `SECURITY_MODEL.md`, `CODEX_CONFIG.md`, and `TOOL_REFERENCE.md`.

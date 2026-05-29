@@ -13,6 +13,25 @@ Start a task:
 }
 ```
 
+Run the all-in-one app dashboard:
+
+```powershell
+dotnet run --project src\WindowsPowerUserMcp.App\WindowsPowerUserMcp.App.csproj
+```
+
+Run the broker through the all-in-one app:
+
+```powershell
+dotnet run --project src\WindowsPowerUserMcp.App\WindowsPowerUserMcp.App.csproj -- --broker
+```
+
+Publish and install:
+
+```powershell
+.\scripts\publish-app.ps1
+.\scripts\install-app.ps1 -InstallTrayAutostart
+```
+
 Run a tracked process:
 
 ```json

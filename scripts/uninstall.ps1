@@ -1,12 +1,15 @@
 param(
-    [string]$InstallRoot = "C:\Tools\WindowsPowerUserMcp"
+    [string]$InstallRoot = "C:\Tools\WindowsPowerUserMcp",
+    [switch]$DeleteLogs,
+    [switch]$DeleteScreenshots,
+    [switch]$DeleteTaskLedger,
+    [switch]$DeleteAllUserData
 )
 
 $ErrorActionPreference = "Stop"
-& "$PSScriptRoot\uninstall-tray-autostart.ps1"
-& "$PSScriptRoot\uninstall-service.ps1"
-if (Test-Path $InstallRoot) {
-    Remove-Item -LiteralPath $InstallRoot -Recurse -Force
-}
-
-Write-Host "Removed WindowsPowerUserMcp binaries from $InstallRoot"
+& "$PSScriptRoot\uninstall-app.ps1" `
+    -InstallRoot $InstallRoot `
+    -DeleteLogs:$DeleteLogs `
+    -DeleteScreenshots:$DeleteScreenshots `
+    -DeleteTaskLedger:$DeleteTaskLedger `
+    -DeleteAllUserData:$DeleteAllUserData

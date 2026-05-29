@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/WindowsPowerUserMcp.App/WindowsPowerUserMcp.App.csproj" />
+    <Project Path="src/WindowsPowerUserMcp.AppManagement/WindowsPowerUserMcp.AppManagement.csproj" />
     <Project Path="src/WindowsPowerUserMcp.BrokerService/WindowsPowerUserMcp.BrokerService.csproj" />
     <Project Path="src/WindowsPowerUserMcp.Core/WindowsPowerUserMcp.Core.csproj" />
     <Project Path="src/WindowsPowerUserMcp.DesktopAgent/WindowsPowerUserMcp.DesktopAgent.csproj" />

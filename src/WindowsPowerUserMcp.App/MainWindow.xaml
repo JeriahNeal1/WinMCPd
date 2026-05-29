@@ -1,0 +1,386 @@
+<Window x:Class="WindowsPowerUserMcp.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WindowsPowerUserMcp"
+        Height="840"
+        Width="1220"
+        MinHeight="680"
+        MinWidth="980"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing"
+        StateChanged="Window_StateChanged">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="0,0,0,1" Padding="20,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="WindowsPowerUserMcp" FontSize="24" FontWeight="SemiBold" />
+                    <TextBlock Text="Owner-authorized local Windows MCP platform for Codex" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Refresh" Click="Refresh_Click" />
+                    <Button Content="Run Diagnostics" Click="RunDiagnostics_Click" />
+                    <Button Content="Exit" Click="ExitDashboard_Click" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1" TabStripPlacement="Left" Margin="16">
+            <TabItem Header="Home">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <WrapPanel>
+                            <Border Style="{StaticResource Card}" Width="250">
+                                <StackPanel>
+                                    <TextBlock Text="Broker" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="BrokerStatusText" Text="Unknown" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,2" />
+                                    <TextBlock x:Name="BrokerHealthText" Foreground="{StaticResource TextSecondaryBrush}" Text="Not checked" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Width="250">
+                                <StackPanel>
+                                    <TextBlock Text="DesktopAgent" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="DesktopAgentStatusText" Text="Unknown" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,2" />
+                                    <TextBlock x:Name="UiAutomationSummaryText" Foreground="{StaticResource TextSecondaryBrush}" Text="UI automation not checked" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Width="250">
+                                <StackPanel>
+                                    <TextBlock Text="Codex MCP" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="CodexReadyText" Text="Unknown" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,2" />
+                                    <TextBlock x:Name="ToolCountText" Foreground="{StaticResource TextSecondaryBrush}" Text="Direct tool catalog not loaded" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Width="250">
+                                <StackPanel>
+                                    <TextBlock Text="Install" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="InstallStatusText" Text="Unknown" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,2" />
+                                    <TextBlock x:Name="UpdateStatusText" Foreground="{StaticResource TextSecondaryBrush}" Text="Update status not checked" />
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Quick Actions" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,12" />
+                                    <WrapPanel>
+                                        <Button Content="Start Backend" Style="{StaticResource PrimaryButton}" Click="StartBackend_Click" />
+                                        <Button Content="Start Elevated" Click="StartElevated_Click" />
+                                        <Button Content="Stop Backend" Click="StopBackend_Click" />
+                                        <Button Content="Restart Backend" Click="RestartBackend_Click" />
+                                        <Button Content="Open Codex Config Instructions" Click="OpenCodex_Click" />
+                                        <Button Content="Open Logs" Click="OpenLogs_Click" />
+                                        <Button Content="Open Data Folder" Click="OpenData_Click" />
+                                    </WrapPanel>
+                                </StackPanel>
+                                <Grid Grid.Column="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" x:Name="VersionText" />
+                                    <TextBlock Grid.Row="1" x:Name="AdminStatusText" />
+                                    <TextBlock Grid.Row="2" x:Name="ActiveTaskCountText" />
+                                    <TextBlock Grid.Row="3" x:Name="TrackedProcessCountText" />
+                                    <TextBlock Grid.Row="4" x:Name="HttpStatusText" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Install root" FontWeight="SemiBold" Margin="0,0,12,6" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="InstallRootText" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Data root" FontWeight="SemiBold" Margin="0,0,12,6" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DataRootText" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Log root" FontWeight="SemiBold" Margin="0,0,12,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="LogRootText" TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Backend">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Backend Management" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <WrapPanel>
+                                    <Button Content="Start User Broker" Style="{StaticResource PrimaryButton}" Click="StartBackend_Click" />
+                                    <Button Content="Start Elevated" Click="StartElevated_Click" />
+                                    <Button Content="Stop User Broker" Click="StopBackend_Click" />
+                                    <Button Content="Restart User Broker" Click="RestartBackend_Click" />
+                                    <Button Content="Install Service" Click="InstallService_Click" />
+                                    <Button Content="Start Service" Click="StartService_Click" />
+                                    <Button Content="Stop Service" Click="StopService_Click" />
+                                    <Button Content="Restart Service" Click="RestartService_Click" />
+                                    <Button Content="Uninstall Service" Click="UninstallService_Click" />
+                                    <Button Content="Repair Service Path" Click="RepairService_Click" />
+                                    <Button Content="Test Broker Pipe" Click="TestBrokerPipe_Click" />
+                                    <Button Content="Test DesktopAgent Pipe" Click="TestDesktopPipe_Click" />
+                                    <Button Content="Test --stdio" Click="TestStdio_Click" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <TextBox x:Name="BackendDetailsText" Height="280" IsReadOnly="True" />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Desktop Agent">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="DesktopAgent / UI Automation" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <WrapPanel>
+                                    <Button Content="Start DesktopAgent" Style="{StaticResource PrimaryButton}" Click="StartDesktopAgent_Click" />
+                                    <Button Content="Restart DesktopAgent" Click="RestartDesktopAgent_Click" />
+                                    <Button Content="Stop DesktopAgent" Click="StopDesktopAgent_Click" />
+                                    <Button Content="Install Tray Autostart" Click="InstallTray_Click" />
+                                    <Button Content="Remove Tray Autostart" Click="UninstallTray_Click" />
+                                    <Button Content="Open Screenshot Folder" Click="OpenScreenshots_Click" />
+                                    <Button Content="Take Test Screenshot" Click="TakeScreenshot_Click" />
+                                    <Button Content="Run UI Self-Test" Click="RunUiSelfTest_Click" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <TextBox x:Name="DesktopAgentDetailsText" Height="260" IsReadOnly="True" />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Codex Setup">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <WrapPanel>
+                            <Button Content="Copy Config" Style="{StaticResource PrimaryButton}" Click="CopyCodexConfig_Click" />
+                            <Button Content="Open .codex Folder" Click="OpenCodexFolder_Click" />
+                            <Button Content="Validate App --stdio" Click="TestStdio_Click" />
+                            <Button Content="Refresh Tool Catalog" Click="RefreshToolCatalog_Click" />
+                        </WrapPanel>
+                    </Border>
+                    <TextBox Grid.Row="1" x:Name="CodexConfigText" IsReadOnly="True" Margin="0,0,12,12" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Install &amp; Update">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Install" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <WrapPanel>
+                                    <Button Content="Install to Default Path" Click="InstallToDefault_Click" />
+                                    <Button Content="Choose Install Root" Click="ChooseInstallRoot_Click" />
+                                    <Button Content="Install Broker Service" Click="InstallService_Click" />
+                                    <Button Content="Install Tray Autostart" Click="InstallTray_Click" />
+                                    <Button Content="Validate Install" Click="Refresh_Click" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Update" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <WrapPanel>
+                                    <Button Content="Check for Updates" Style="{StaticResource PrimaryButton}" Click="CheckUpdates_Click" />
+                                    <Button Content="Download Latest Asset" Click="DownloadUpdate_Click" />
+                                    <Button Content="Apply Staged Update" Click="ApplyUpdate_Click" />
+                                </WrapPanel>
+                                <TextBox x:Name="UpdateDetailsText" Height="180" IsReadOnly="True" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Uninstall" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <WrapPanel>
+                                    <CheckBox x:Name="DeleteLogsCheck" Content="Delete logs" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="DeleteScreenshotsCheck" Content="Delete screenshots" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="DeleteTaskLedgerCheck" Content="Delete task ledger" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="DeleteAllUserDataCheck" Content="Delete all user data" Margin="0,0,18,8" />
+                                </WrapPanel>
+                                <Button Content="Run Safe Uninstall" Click="SafeUninstall_Click" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Tasks">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <WrapPanel>
+                            <Button Content="Refresh Tasks" Style="{StaticResource PrimaryButton}" Click="RefreshTasks_Click" />
+                            <Button Content="Refresh Processes" Click="RefreshProcesses_Click" />
+                        </WrapPanel>
+                    </Border>
+                    <TextBox Grid.Row="1" x:Name="TasksText" IsReadOnly="True" Margin="0,0,12,12" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Logs">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <WrapPanel>
+                            <Button Content="Refresh Recent Logs" Style="{StaticResource PrimaryButton}" Click="RefreshLogs_Click" />
+                            <Button Content="Open Logs Folder" Click="OpenLogs_Click" />
+                            <Button Content="Export Diagnostic Bundle" Click="ExportDiagnostics_Click" />
+                        </WrapPanel>
+                    </Border>
+                    <TextBox Grid.Row="1" x:Name="LogsText" IsReadOnly="True" Margin="0,0,12,12" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Diagnostics">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <WrapPanel>
+                            <Button Content="Run Full Health Check" Style="{StaticResource PrimaryButton}" Click="RunDiagnostics_Click" />
+                            <Button Content="Export Diagnostic Bundle" Click="ExportDiagnostics_Click" />
+                            <Button Content="Repair Service" Click="RepairService_Click" />
+                            <Button Content="Repair Tray Autostart" Click="RepairTray_Click" />
+                            <Button Content="Open Troubleshooting Docs" Click="OpenTroubleshooting_Click" />
+                        </WrapPanel>
+                    </Border>
+                    <TextBox Grid.Row="1" x:Name="DiagnosticsText" IsReadOnly="True" Margin="0,0,12,12" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Settings">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Install root" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="InstallRootBox" Margin="0,0,0,8" />
+                                <TextBlock Grid.Row="1" Text="Data root" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="DataRootBox" Margin="0,0,0,8" />
+                                <TextBlock Grid.Row="2" Text="Service data root" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="ServiceDataRootBox" Margin="0,0,0,8" />
+                                <TextBlock Grid.Row="3" Text="Pipe name" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="PipeNameBox" Margin="0,0,0,8" />
+                                <TextBlock Grid.Row="4" Text="Allowed SID(s)" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="AllowedSidsBox" Margin="0,0,0,8" />
+                                <TextBlock Grid.Row="5" Text="HTTP port" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="HttpPortBox" Margin="0,0,0,8" />
+                                <TextBlock Grid.Row="6" Text="Theme" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <ComboBox Grid.Row="6" Grid.Column="1" x:Name="ThemeBox" Margin="0,0,0,8" SelectedIndex="0">
+                                    <ComboBoxItem Content="system" />
+                                    <ComboBoxItem Content="light" />
+                                    <ComboBoxItem Content="dark" />
+                                </ComboBox>
+                                <TextBlock Grid.Row="7" Text="Log level" FontWeight="SemiBold" Margin="0,0,12,8" />
+                                <ComboBox Grid.Row="7" Grid.Column="1" x:Name="LogLevelBox" Margin="0,0,0,8" SelectedIndex="2">
+                                    <ComboBoxItem Content="Trace" />
+                                    <ComboBoxItem Content="Debug" />
+                                    <ComboBoxItem Content="Information" />
+                                    <ComboBoxItem Content="Warning" />
+                                    <ComboBoxItem Content="Error" />
+                                </ComboBox>
+                                <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
+                                    <CheckBox x:Name="AllowAdminsPipeCheck" Content="Allow Builtin Administrators for service pipe" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="LocalHttpCheck" Content="Enable localhost HTTP MCP" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="RequireHttpTokenCheck" Content="Require HTTP bearer token" Margin="0,0,18,8" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="9" Grid.ColumnSpan="2" Orientation="Horizontal">
+                                    <CheckBox x:Name="StartMinimizedCheck" Content="Start minimized to tray" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="MinimizeOnCloseCheck" Content="Close hides to tray" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="CheckUpdatesStartupCheck" Content="Check updates on startup" Margin="0,0,18,8" />
+                                    <CheckBox x:Name="IncludePrereleaseCheck" Content="Include prereleases" Margin="0,0,18,8" />
+                                </StackPanel>
+                                <WrapPanel Grid.Row="10" Grid.ColumnSpan="2" Margin="0,8,0,0">
+                                    <Button Content="Save Settings" Style="{StaticResource PrimaryButton}" Click="SaveSettings_Click" />
+                                    <Button Content="Reload Settings" Click="ReloadSettings_Click" />
+                                </WrapPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="About">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="WindowsPowerUserMcp" FontSize="22" FontWeight="SemiBold" />
+                                <TextBlock x:Name="AboutText" Margin="0,12,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="0,1,0,0" Padding="16,8">
+            <DockPanel>
+                <TextBlock x:Name="FooterStatusText" Text="Ready" Foreground="{StaticResource TextSecondaryBrush}" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
